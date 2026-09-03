@@ -1,262 +1,353 @@
-Generally when bytecode file is created when we run our file is hidden-- but when we run a file which have imported any other file , then that will create byte code file in forlder __pycache__/ by name(imported_file_name-python_extension_version.pyc).
+﻿# 🐍 Python Study Notes
 
-To reload new content of a file in terminal mode - 
-    from importlib import reload 
-    reload(file_name which needs to reload).
+> Personal reference notes covering core Python concepts, internals, and gotchas.
 
- BASIC UNDERSTANDING -----------
-a = a + 1
-    This is an assignment statement.
-    It takes the current value of a, adds 1, and assigns the result back to a.
-    Always creates a NEW OBJECT/value (in languages like Python for immutable types).
+---
 
-a += 1
-    This is a compound assignment (or shorthand assignment).
-    It’s equivalent in result to a = a + 1 for immutable types (like Python integers), but for mutable types (like lists), it can modify in-place.
+## 📑 Table of Contents
 
-NOTE -> += modifies the list in-place.
-        = with + creates a new list and assigns it.
+1. [Bytecode & Module Reloading](#1-bytecode--module-reloading)
+2. [Assignment Operators](#2-assignment-operators)
+3. [Identity vs Equality](#3-identity-vs-equality)
+4. [Garbage Collection](#4-garbage-collection)
+5. [Data Types Overview](#5-data-types-overview)
+6. [Operations on Data Types](#6-operations-on-data-types)
+7. [Type Conversion](#7-type-conversion)
+8. [Mutable vs Immutable](#8-mutable-vs-immutable)
+9. [Operator Precedence](#9-operator-precedence)
+10. [Dictionaries — Deep Dive](#10-dictionaries--deep-dive)
+11. [How Python Works Internally](#11-how-python-works-internally)
 
-m == n -> Check whether values inside m and n are same or not 
-m is n -> Check whether m and n object points to same refernce or not
-When we assign same value in the list then it will point to different refer
-![alt text](image-1.png)
+---
 
-Generally python have Garbage Collection -> It means after assing new values it points to new reference and garbage collect the older one-
-but in case of Number or String type -> Garbage Collection doen't occur immdiately it happens after some time.
+## 1. Bytecode & Module Reloading
 
-boolean + any_other_data_types = result(any_other_data_types) -> Bool behaves like int (True=1, False=0)
+### Bytecode Files (`.pyc`)
 
-performing operations on two int can give float values.
+- When you **run a file directly**, the bytecode is hidden/internal.
+- When a file **imports another file**, Python creates a `.pyc` bytecode cache:
 
+```
+__pycache__/imported_file_name.cpython-3xx.pyc
+```
 
-Important Points About Python Operations on Data Types----------
+### Reloading a Module at Runtime
 
-1. Numbers (int, float, complex) Support All Arithmetic Operators
-    +, -, *, /, //, %, ** all work.
-    Mixing int and float results in float.
-    Mixing complex with int or float results in complex.
+```python
+from importlib import reload
+reload(module_name)   # Forces Python to re-read and re-execute the module
+```
 
-2. Division Always Returns Float
-    Even 10 / 2 → 5.0 (float), never integer.
-    Use // for floor division to get integer part only.
+> **Why?** Python caches imported modules. `reload()` is needed when the source file changes during a running session.
 
-3. Boolean Values Act as Integers
-    True is 1, False is 0.
-    You can do True + 2 → 3.
-    Beware: mixing bool with strings or lists leads to errors.
+---
 
-4. Strings Support Only + and * Operators
-    + concatenates strings.
-    * repeats strings by integer count.
-    You cannot do "abc" - "a" or "abc" / 3 → raises TypeError.
-    Trying to mix string with numbers using + without explicit conversion raises TypeError.
+## 2. Assignment Operators
 
-5. Lists and Tuples Support + and *
-    list + list → concatenates lists.
-    tuple + tuple → concatenates tuples.
-    list * int or tuple * int → repeats sequence.
-    list * float or tuple * float → TypeError.
+### `a = a + 1`
+- Standard **assignment statement**.
+- Takes current value of `a`, adds 1, assigns result back.
+- **Always creates a NEW object** (for immutable types like `int`).
 
-6. Implicit Conversion Doesn’t Happen Between Strings and Numbers
-    "10" + 5 raises TypeError.
-    You must convert explicitly: "10" + str(5) or int("10") + 5.
+### `a += 1`
+- **Compound assignment** (shorthand).
+- For **immutable types** (int, str, tuple) → same result as `a = a + 1`.
+- For **mutable types** (list) → modifies the object **in-place**.
 
-7. None Cannot Be Used in Arithmetic
-    None + 1 → TypeError.
-    None is for absence of value, not a number.
+### Key Difference with Lists
 
-8. Mutable vs Immutable Types Affect Operations
-    Numbers, strings, tuples are immutable — operations produce new objects.
-    Lists are mutable — some operations like += modify in place.
-    a = [1,2]; b = a; a += [3] modifies a and b (both same list).
-    a = [1,2]; b = a; a = a + [3] creates new list for a but b remains unchanged.
+```python
+a = [1, 2]
+b = a
 
-9. Complex Numbers Support Only Arithmetic, No Ordering
-    complex supports +, -, *, /, **.
-    Cannot use comparison operators like <, > → raises TypeError.
+# Using +=  → modifies in-place, b is also affected
+a += [3]
+print(a)  # [1, 2, 3]
+print(b)  # [1, 2, 3]  ← b changed too!
 
-10. Mixing Types Can Lead to TypeErrors
-    Examples to watch out for:
-    str + int → error
-    str * float → error
-    list + tuple → error
-    bool + str → error
-    complex + str → error
+# Using = + → creates a new list, b is NOT affected
+a = a + [3]
+print(a)  # [1, 2, 3]
+print(b)  # [1, 2]     ← b unchanged
+```
 
-11. Operator Overloading
-    Classes can define behavior for operators (__add__, __mul__, etc.).
-    Built-in types have their own implementations.
-    Custom objects may behave differently depending on implemented methods.
+> ⚡ **Rule:** `+=` modifies the list in-place. `= list + [item]` creates a new list.
 
-12. Type Conversion Functions Are Your Friend
-    Use int(), float(), str(), complex() to convert explicitly.
-    Helps avoid unexpected TypeError.
+---
 
-13. Floor Division (//)
-    Works differently for negative numbers vs normal division.
-    Example: -3 // 2 → -2 (floors towards minus infinity).
+## 3. Identity vs Equality
 
-14. Order of Operations Follows Normal Math Precedence
-    ** (power) first, then *, /, //, %, then +, -.
+| Operator | Checks | Example |
+|----------|--------|---------|
+| `==` | **Value** equality | `[1,2] == [1,2]` → `True` |
+| `is` | **Reference** (same object in memory) | `[1,2] is [1,2]` → `False` |
 
-15. Use type() to Debug
-    When confused about operation result, check operand types:
-    print(type(a), type(b))
+```python
+a = [1, 2]
+b = [1, 2]
+c = a
 
-How Python works internally--------
+print(a == b)   # True  — same values
+print(a is b)   # False — different objects
+print(a is c)   # True  — c points to the same object as a
+```
 
-    Python Source Code  
-            ↓
-    Tokenization (Lexer)
-        ↓
-      Parsing (AST)
-        ↓
-    Bytecode Compilation (.pyc)
-        ↓
-    Python Virtual Machine (PVM)
-        ↓
-    Execution + Memory Mgmt + GC
+> **Note:** For small integers (-5 to 256) and interned strings, Python may reuse the same object, so `is` can return `True` unexpectedly. Don't rely on `is` for value comparisons.
 
-Bonus: Why Python is Slower than Compiled Languages?
-    Python runs bytecode on a virtual machine, not directly on CPU.
-    It’s interpreted, not compiled to machine code.
-    Dynamic typing and runtime checks add overhead.
-    But it gains great flexibility and ease of use.
+---
 
-<!-- Data types -->
+## 4. Garbage Collection
 
-- Number : 1234,2.3,3+4j,Decimal(),Fraction()
-- String
-- List
-- Dict
-- Set
-- ByteCode
-- Tuple
+- Python uses **reference counting** + a **cyclic garbage collector**.
+- When a variable is reassigned, the old object's reference count drops.
+- When count reaches **0**, memory is freed.
 
+```python
+a = 10   # Object 10 is created, ref count = 1
+a = 20   # Object 10's ref count drops to 0 → eligible for GC
+```
 
-1. What is a Dictionary in Python?
-A dictionary is a mutable, unordered collection of key-value pairs.
-It works like a real-world dictionary: you look up a key to get its value.
+> ⚠️ **Exception:** For **numbers** and **strings**, Python uses **interning/caching**, so GC may not happen immediately — small objects are kept around for reuse.
 
-Syntax:
+---
 
-python
-Copy code
-my_dict = {key1: value1, key2: value2, ...}
-Keys → must be immutable (e.g., string, number, tuple without mutable elements).
+## 5. Data Types Overview
 
-Values → can be anything (numbers, strings, lists, other dicts, etc.).
+| Category | Types |
+|----------|-------|
+| **Numeric** | `int`, `float`, `complex`, `Decimal`, `Fraction` |
+| **Sequence** | `str`, `list`, `tuple` |
+| **Mapping** | `dict` |
+| **Set** | `set`, `frozenset` |
+| **Boolean** | `bool` (`True` / `False`) |
+| **None** | `NoneType` |
+| **Binary** | `bytes`, `bytearray`, `memoryview` |
 
-2. Why People Get Confused
-Some common confusions:
+### Boolean behaves like int
 
-Keys must be unique – if repeated, last assignment wins.
+```python
+True + 5     # → 6
+False + 10   # → 10
+True * 3     # → 3
+bool(0)      # → False
+bool("")     # → False
+bool([])     # → False
+bool(1)      # → True
+```
 
-Unordered until Python 3.6 – now it preserves insertion order (since Python 3.7+ officially).
+---
 
-Mutable nature – modifying affects references.
+## 6. Operations on Data Types
 
-Using mutable objects as keys – leads to error.
+### Arithmetic Operators
 
-Shallow vs. deep copy – copying a dict does not copy nested structures.
+| Type | Supported Operators | Notes |
+|------|---------------------|-------|
+| `int`, `float`, `complex` | `+`, `-`, `*`, `/`, `//`, `%`, `**` | Mixing int+float → float |
+| `str` | `+`, `*` | `+` = concat, `*` = repeat |
+| `list`, `tuple` | `+`, `*` | `+` = concat, `*` by int only |
+| `bool` | Same as `int` | `True=1`, `False=0` |
+| `None` | ❌ None | Raises `TypeError` |
 
-Iteration gives keys by default, not values.
+### Common TypeError Traps
 
-3. Examples & Confusion Breakers
-Example 1: Duplicate keys
-python
-Copy code
+```python
+"10" + 5          # ❌ TypeError — no implicit conversion
+"abc" - "a"       # ❌ TypeError — subtraction not supported on strings
+[1,2] + (3,4)     # ❌ TypeError — list + tuple not allowed
+"abc" * 2.0       # ❌ TypeError — must multiply by int, not float
+None + 1          # ❌ TypeError — None is not a number
+complex(1,2) > 3  # ❌ TypeError — complex has no ordering
+```
+
+### Division Rules
+
+```python
+10 / 2    # → 5.0   (always float!)
+10 // 2   # → 5     (floor division — integer result)
+-7 // 2   # → -4    (floors towards -infinity, not towards 0)
+10 % 3    # → 1     (modulo / remainder)
+2 ** 10   # → 1024  (power)
+```
+
+---
+
+## 7. Type Conversion
+
+### Explicit Conversion (Type Casting)
+
+```python
+int("42")        # → 42
+int(3.9)         # → 3   (truncates, doesn't round)
+float("3.14")    # → 3.14
+str(100)         # → "100"
+bool(0)          # → False
+bool("hello")    # → True
+list((1,2,3))    # → [1, 2, 3]
+tuple([1,2,3])   # → (1, 2, 3)
+```
+
+> Python **never** does implicit conversion between strings and numbers. Always convert explicitly.
+
+### Debug with `type()`
+
+```python
+x = 3.14
+print(type(x))         # <class 'float'>
+print(type(x).__name__) # 'float'
+```
+
+---
+
+## 8. Mutable vs Immutable
+
+| Immutable (cannot change in-place) | Mutable (can change in-place) |
+|------------------------------------|-------------------------------|
+| `int`, `float`, `complex` | `list` |
+| `str` | `dict` |
+| `tuple` | `set` |
+| `bool` | `bytearray` |
+| `frozenset` | |
+
+### Why it matters
+
+```python
+# Immutable — new object is created
+a = "hello"
+b = a
+a += " world"
+print(b)  # "hello"  — b is unchanged
+
+# Mutable — same object is modified
+a = [1, 2]
+b = a
+a.append(3)
+print(b)  # [1, 2, 3]  — b is changed!
+```
+
+> 💡 **Rule:** To safely copy a mutable object, use `.copy()` or `copy.deepcopy()`.
+
+---
+
+## 9. Operator Precedence
+
+Highest → Lowest:
+
+| Priority | Operator | Description |
+|----------|----------|-------------|
+| 1 | `()` | Parentheses |
+| 2 | `**` | Exponentiation |
+| 3 | `+x`, `-x`, `~x` | Unary operators |
+| 4 | `*`, `/`, `//`, `%` | Multiplication / Division |
+| 5 | `+`, `-` | Addition / Subtraction |
+| 6 | `<<`, `>>` | Bitwise shifts |
+| 7 | `&` | Bitwise AND |
+| 8 | `^` | Bitwise XOR |
+| 9 | `\|` | Bitwise OR |
+| 10 | Comparisons | `==`, `!=`, `<`, `>`, `<=`, `>=`, `is`, `in` |
+| 11 | `not` | Logical NOT |
+| 12 | `and` | Logical AND |
+| 13 | `or` | Logical OR |
+
+```python
+# Example
+result = 2 + 3 * 4 ** 2   # → 2 + 3 * 16 → 2 + 48 → 50
+```
+
+---
+
+## 10. Dictionaries — Deep Dive
+
+### What is a Dictionary?
+
+A **mutable**, ordered (Python 3.7+) collection of **key-value pairs**.
+
+```python
+my_dict = {key1: value1, key2: value2}
+```
+
+- **Keys** → must be **immutable/hashable** (str, int, tuple)
+- **Values** → can be **anything**
+
+### Common Gotchas
+
+| Gotcha | Explanation |
+|--------|-------------|
+| Duplicate keys | Last value wins |
+| Mutable keys | ❌ `TypeError: unhashable type` |
+| Default iteration | Gives **keys only**, not values |
+| Shallow copy | Nested objects still share references |
+
+### Examples
+
+**Duplicate keys — last wins:**
+```python
 d = {"a": 1, "b": 2, "a": 3}
-print(d)
-Output:
+print(d)  # {"a": 3, "b": 2}
+```
 
-arduino
-Copy code
-{'a': 3, 'b': 2}
-"a" is duplicated → last value (3) overrides earlier (1).
-
-Example 2: Mutable values
-python
-Copy code
+**Mutable value — reference behavior:**
+```python
 list1 = [1, 2]
 d = {"numbers": list1}
 list1.append(3)
-print(d)
-Output:
+print(d)  # {"numbers": [1, 2, 3]}  ← changed!
+```
 
-bash
-Copy code
-{'numbers': [1, 2, 3]}
-Because the value is a reference, changing list1 changes the dictionary’s value.
+**Invalid key (mutable type):**
+```python
+d = {[1, 2]: "test"}    # ❌ TypeError: unhashable type: 'list'
+d = {(1, 2): "test"}    # ✅ Tuples are hashable
+```
 
-Example 3: Invalid keys (mutable types)
-python
-Copy code
-# Invalid: list as key
-d = {[1, 2]: "test"}  
-Error:
-
-bash
-Copy code
-TypeError: unhashable type: 'list'
-Keys must be hashable (immutable). Lists aren’t hashable, but tuples can be:
-
-python
-Copy code
-d = {(1, 2): "test"}  # ✅ Works
-Example 4: Dictionary inside dictionary
-python
-Copy code
+**Nested dictionary:**
+```python
 student = {
     "name": "Ishu",
     "marks": {"math": 90, "science": 95}
 }
 print(student["marks"]["science"])  # 95
-Useful for nested data.
+```
 
-Example 5: Iteration behavior
-python
-Copy code
+**Iteration:**
+```python
 d = {"a": 10, "b": 20}
-for x in d:
-    print(x)  # Prints only keys
-If you want both:
 
-python
-Copy code
-for k, v in d.items():
-    print(k, v)
-Example 6: Shallow vs Deep Copy
-python
-Copy code
+for key in d:               # iterates over keys
+    print(key)
+
+for key, val in d.items():  # iterates over key-value pairs
+    print(key, val)
+```
+
+**Shallow vs Deep Copy:**
+```python
 import copy
 
 original = {"numbers": [1, 2]}
-shallow_copy = original.copy()
-deep_copy = copy.deepcopy(original)
+shallow  = original.copy()
+deep     = copy.deepcopy(original)
 
 original["numbers"].append(3)
 
-print(shallow_copy)  # {'numbers': [1, 2, 3]}
-print(deep_copy)     # {'numbers': [1, 2]}
-copy() → copies references (shallow).
+print(shallow)   # {"numbers": [1, 2, 3]}  ← affected!
+print(deep)      # {"numbers": [1, 2]}     ← safe!
+```
 
-deepcopy() → fully independent copy.
+### Useful Dictionary Methods
 
-4. Useful Dictionary Methods
-Method	Description
-.keys()	Returns keys
-.values()	Returns values
-.items()	Returns (key, value) pairs
-.get(key, def)	Returns value or default if key not found
-.update()	Merges another dictionary
-.pop(key)	Removes key and returns its value
-.clear()	Removes all items
+| Method | Description |
+|--------|-------------|
+| `.keys()` | Returns all keys |
+| `.values()` | Returns all values |
+| `.items()` | Returns `(key, value)` pairs |
+| `.get(key, default)` | Returns value or `default` if key missing |
+| `.update(other_dict)` | Merges another dict into this one |
+| `.pop(key)` | Removes key and returns its value |
+| `.setdefault(key, val)` | Sets key if not present, returns its value |
+| `.clear()` | Removes all items |
 
-5. Real-life Example
-python
-Copy code
+```python
 employee = {
     "name": "Arsh",
     "id": 101,
@@ -264,10 +355,61 @@ employee = {
     "salary": {"basic": 50000, "bonus": 10000}
 }
 
-print(employee["skills"][0])  # Python
-print(employee["salary"]["bonus"])  # 10000
-Here, you can store complex structured data.
+print(employee.get("age", "Not Found"))   # "Not Found"
+print(employee["skills"][0])              # "Python"
+print(employee["salary"]["bonus"])        # 10000
+```
 
+---
 
+## 11. How Python Works Internally
 
+### Execution Pipeline
 
+```
+┌─────────────────────────┐
+│   Python Source Code    │  (.py file)
+└──────────┬──────────────┘
+           │
+           ▼
+┌─────────────────────────┐
+│  Tokenization (Lexer)   │  Breaks code into tokens
+└──────────┬──────────────┘
+           │
+           ▼
+┌─────────────────────────┐
+│   Parsing (AST)         │  Builds Abstract Syntax Tree
+└──────────┬──────────────┘
+           │
+           ▼
+┌─────────────────────────┐
+│  Bytecode Compilation   │  Generates .pyc in __pycache__
+└──────────┬──────────────┘
+           │
+           ▼
+┌─────────────────────────┐
+│  Python Virtual Machine │  Executes bytecode instructions
+│         (PVM)           │
+└──────────┬──────────────┘
+           │
+           ▼
+┌─────────────────────────┐
+│ Execution + Memory Mgmt │  GC, reference counting
+│   + Garbage Collector   │
+└─────────────────────────┘
+```
+
+### Why is Python Slower Than Compiled Languages?
+
+| Reason | Explanation |
+|--------|-------------|
+| **Bytecode, not machine code** | Runs on PVM instead of directly on CPU |
+| **Interpreted** | No ahead-of-time compilation to native binary |
+| **Dynamic typing** | Types are checked at runtime, not compile time |
+| **Runtime overhead** | Every operation involves extra Python-level checks |
+
+> 💡 **Trade-off:** Python sacrifices raw speed for **readability**, **developer productivity**, and **flexibility**.
+
+---
+
+*Last updated: September 2026*

@@ -118,6 +118,7 @@ def italic(func):
 def greet_html():
     return "Hello"
 
+print(greet_html.__name__)
 print(greet_html())  # <b><i>Hello</i></b>
 
 
