@@ -1,0 +1,1 @@
+print(hex(255))  # Output: 'ff' (hexadecimal representation of 255)
